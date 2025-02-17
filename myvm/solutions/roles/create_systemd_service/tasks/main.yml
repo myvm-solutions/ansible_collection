@@ -1,0 +1,6 @@
+---
+# This role aims to be a resource module for systemd services
+
+- name: Print status
+  debug:
+    msg: Not implemented
