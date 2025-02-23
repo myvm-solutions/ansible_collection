@@ -1,0 +1,65 @@
+---
+# This role will install basic monitoring daemons
+
+# TODO: move to vars file
+- name: Set environment vars
+  set_fact:
+    # file_server: rockpronas1
+    prometheus_server: sys-mon-1
+    service_groups:
+      vmhosts: libvirt
+    prom_services:
+      node_exporter:
+        conf_file: /etc/prometheus/scrape_configs/nodes.yml
+        port: "9100"
+      libvirt:
+        conf_file: /etc/prometheus/scrape_configs/libvirt.yml
+        port: "9177"
+    install_services:
+      - node_exporter
+
+- name: Select Prometheus services
+  when: item in service_groups
+  set_fact:
+    install_services: "{{ install_services + [service_groups[item]] }}"
+  loop: "{{ group_names }}"
+
+# - debug: var=install_services
+
+- name: Install prometheus node_exporter
+  include_role:
+    name: prometheus.prometheus.node_exporter
+  when:
+    # - "'distribution' in ansible_facts"
+    - ansible_facts['distribution'] | lower not in ['ubuntu']
+    #false # change to when os != ubuntu (or debian?)
+
+    #  "ansible_facts": {
+    #     "distribution": "Ubuntu",
+    #     "distribution_file_parsed": true,
+    #     "distribution_file_path": "/etc/os-release",
+    #     "distribution_file_variety": "Debian",
+    #     "distribution_major_version": "22",
+    #     "distribution_release": "jammy",
+    #     "distribution_version": "22.04",
+    #  }
+
+# TODO: implement security
+# https://github.com/prometheus-community/ansible/tree/main/roles/node_exporter#tls-config
+
+- name: Update config on Prometheus server
+  ansible.builtin.lineinfile:
+    path: "{{ prom_services[item]['conf_file'] }}"
+    line: "{{ new_entry }}"
+    insertafter: EOF  # Alternately, static_configs:
+  loop: "{{ install_services }}"
+  delegate_to: "{{ prometheus_server }}"
+  notify: restart_prometheus
+  vars:
+    new_entry: "      - targets: [{{ inventory_hostname_short }}:{{ prom_services[item]['port'] }}]"
+
+# TODO: duplicate equivalent of above for Loki Promtail
+
+
+- name: Restart services as necessary
+  meta: flush_handlers

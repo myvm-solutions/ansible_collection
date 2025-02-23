@@ -1,6 +1,15 @@
 # ansible_collection
 MyVM.Solutions common Ansible collection
 
+## Prerequisites:
+
+`ansible-galaxy collection install prometheus.prometheus`
+
+```bash
+cd ansible_collection
+ln -s $(pwd)/myvm $HOME/.ansible/collections/ansible_collections/
+```
+
 ## Roles:
 
 ### Create systemd service

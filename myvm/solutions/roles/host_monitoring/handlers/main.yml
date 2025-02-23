@@ -1,0 +1,8 @@
+---
+# TODO: Actually restart a service
+# Prerequisite: Set up systemd service
+- name: restart_prometheus
+  ansible.builtin.debug:
+    msg: "RESTART PROMETHEUS SERVICE ON {{ prometheus_server }}"
+  run_once: true
+  delegate_to: sys-mon-1
