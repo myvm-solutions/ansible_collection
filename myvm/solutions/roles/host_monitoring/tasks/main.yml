@@ -1,23 +1,6 @@
 ---
 # This role will install basic monitoring daemons
 
-# TODO: move to vars file
-- name: Set environment vars
-  set_fact:
-    # file_server: rockpronas1
-    prometheus_server: sys-mon-1
-    service_groups:
-      vmhosts: libvirt
-    prom_services:
-      node_exporter:
-        conf_file: /etc/prometheus/scrape_configs/nodes.yml
-        port: "9100"
-      libvirt:
-        conf_file: /etc/prometheus/scrape_configs/libvirt.yml
-        port: "9177"
-    install_services:
-      - node_exporter
-
 - name: Select Prometheus services
   when: item in service_groups
   set_fact:

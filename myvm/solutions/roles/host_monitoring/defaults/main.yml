@@ -1,0 +1,23 @@
+---
+#Default values for host_monitoring
+
+# file_server: rockpronas1
+prometheus_server: sys-mon-1
+
+# General groups that get special monitors
+service_groups:
+  vmhosts: libvirt
+  # sqlservers: some sql monitor # todo
+
+# Config files and ports for each monitor
+prom_services:
+  node_exporter:
+    conf_file: /etc/prometheus/scrape_configs/nodes.yml
+    port: "9100"
+  libvirt:
+    conf_file: /etc/prometheus/scrape_configs/libvirt.yml
+    port: "9177"
+
+# Initial list of services, add on to this list depending on host
+install_services:
+  - node_exporter
