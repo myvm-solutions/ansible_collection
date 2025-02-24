@@ -4,7 +4,7 @@
 - name: Scan partition table
   parted:
     device: "/dev/{{ install_disk }}"
-    unit: "{{ size_units | default('MiB') }}"
+    unit: "{{ size_units | default('GiB') }}"
   register: disk_info
 
 - name: Display drive details
@@ -13,24 +13,30 @@
 - name: Wipe existing partition table
   when:
     - wipe_table
-    - disk_info.partitions | length != install_partitions | length
+    - not (starts and ends and flags and name and num and count)
   parted:
     device: "/dev/{{ install_disk }}"
-    number: "{{ item.num }}"
+    number: "{{ item.0.num }}"
     state: absent
-  loop: "{{ disk_info.partitions }}"
+  loop: "{{ disk_info.partitions | zip(install_partitions) }}"
+  vars:
+    starts: "{{ item[0]['begin'] | float == item[1]['part_start'] | default(0) | float }}"
+    ends: "{{ item[0]['end'] | float == item[1]['part_end'] | default(disk_info.disk.size) | float }}"
+    flags: "{{ item[0]['flags'] == item[1]['flags'] | default([]) }}"
+    name: "{{ item[0]['name'] == item[1]['name'] }}"
+    num: "{{ item[0]['num'] | int == item[1]['part_num'] | int }}"
+    count: "{{ disk_info.partitions | length == install_partitions | length }}"
 
 - name: Create new partitions
   parted:
     device: "/dev/{{ install_disk }}"
     label: gpt
     number: "{{ item.part_num }}"
-    name: "{{ item.name | default(omit) }}"
+    name: "{{ item.name }}"
     flags: "{{ item.flags | default(omit) }}"
     part_type: "{{ item.part_type | default(omit) }}"
     fs_type: "{{ item.fs_type | default(omit) }}"
-    part_start: "{{ item.part_start | default(omit) }}"
-    part_end: "{{ item.part_end | default('100%') }}"
-    unit: "{{ size_units | default('MiB') }}"
+    part_start: "{% if 'part_start' in item %}{{item.part_start}}GiB{% else %}0%{% endif %}"
+    part_end: "{% if 'part_end' in item %}{{item.part_end}}GiB{% else %}100%{% endif %}"
     state: present
   loop: "{{ install_partitions }}"
