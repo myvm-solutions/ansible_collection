@@ -1,0 +1,36 @@
+---
+# This role will configure specified partitions
+
+- name: Scan partition table
+  parted:
+    device: "/dev/{{ install_disk }}"
+    unit: "{{ size_units | default('MiB') }}"
+  register: disk_info
+
+- name: Display drive details
+  debug: var=disk_info
+
+- name: Wipe existing partition table
+  when:
+    - wipe_table
+    - disk_info.partitions | length != install_partitions | length
+  parted:
+    device: "/dev/{{ install_disk }}"
+    number: "{{ item.num }}"
+    state: absent
+  loop: "{{ disk_info.partitions }}"
+
+- name: Create new partitions
+  parted:
+    device: "/dev/{{ install_disk }}"
+    label: gpt
+    number: "{{ item.part_num }}"
+    name: "{{ item.name | default(omit) }}"
+    flags: "{{ item.flags | default(omit) }}"
+    part_type: "{{ item.part_type | default(omit) }}"
+    fs_type: "{{ item.fs_type | default(omit) }}"
+    part_start: "{{ item.part_start | default(omit) }}"
+    part_end: "{{ item.part_end | default('100%') }}"
+    unit: "{{ size_units | default('MiB') }}"
+    state: present
+  loop: "{{ install_partitions }}"

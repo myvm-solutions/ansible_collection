@@ -1,0 +1,4 @@
+---
+#Default values for partition_table
+
+wipe_table: false
