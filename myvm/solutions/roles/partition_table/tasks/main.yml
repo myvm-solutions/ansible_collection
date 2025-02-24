@@ -7,8 +7,8 @@
     unit: "{{ size_units | default('GiB') }}"
   register: disk_info
 
-- name: Display drive details
-  debug: var=disk_info
+# - name: Display drive details
+#   debug: var=disk_info
 
 - name: Wipe existing partition table
   when:
