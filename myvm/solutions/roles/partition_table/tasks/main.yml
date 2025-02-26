@@ -10,6 +10,20 @@
 # - name: Display drive details
 #   debug: var=disk_info
 
+# - name: Print partition diffs
+#   debug: var=part_diffs
+#   loop: "{{ disk_info.partitions | zip(install_partitions) }}" # TODO: sort install_partitions by part_num
+#   loop_control:
+#     label: "{{ install_disk }}:{{ item[0]['num'] }} {{ item[0]['name'] | default('') }}"
+#   vars:
+#     part_diffs:
+#       starts: "{{ item[0]['begin'] | float == item[1]['part_start'] | default(0) | float }}"
+#       ends: "{{ item[0]['end'] | float == item[1]['part_end'] | default(disk_info.disk.size) | float }}"
+#       flags: "{{ item[0]['flags'] == item[1]['flags'] | default([]) }}"
+#       name: "{{ item[0]['name'] == item[1]['name'] }}"
+#       num: "{{ item[0]['num'] | int == item[1]['part_num'] | int }}"
+#       count: "{{ disk_info.partitions | length <= install_partitions | length }}"
+
 - name: Wipe existing partition table
   when:
     - wipe_table
@@ -18,14 +32,17 @@
     device: "/dev/{{ install_disk }}"
     number: "{{ item.0.num }}"
     state: absent
-  loop: "{{ disk_info.partitions | zip(install_partitions) }}"
+  loop: "{{ disk_info.partitions | zip(install_partitions) }}" # TODO: sort install_partitions by part_num
+  loop_control:
+    label: "Partition: {{ _part }}"
   vars:
     starts: "{{ item[0]['begin'] | float == item[1]['part_start'] | default(0) | float }}"
     ends: "{{ item[0]['end'] | float == item[1]['part_end'] | default(disk_info.disk.size) | float }}"
     flags: "{{ item[0]['flags'] == item[1]['flags'] | default([]) }}"
     name: "{{ item[0]['name'] == item[1]['name'] }}"
     num: "{{ item[0]['num'] | int == item[1]['part_num'] | int }}"
-    count: "{{ disk_info.partitions | length == install_partitions | length }}"
+    count: "{{ disk_info.partitions | length <= install_partitions | length }}"
+    _part: "/dev/{{ install_disk }}{{ item.0.num }}"
 
 - name: Create new partitions
   parted:
@@ -40,3 +57,30 @@
     part_end: "{% if 'part_end' in item %}{{item.part_end}}GiB{% else %}100%{% endif %}"
     state: present
   loop: "{{ install_partitions }}"
+  register: created_parts
+
+# - debug: var=created_parts
+
+- name: Find new SWAP partitions
+  set_fact:
+    new_swap: "{{ new_swap | default([]) + [item.item] }}"
+  when:
+    - _changed
+    - "_name == 'SWAP'"
+  loop: "{{ created_parts['results'] }}"
+  loop_control:
+    label: "Partition: {{ _part }}, Name: {{ _name }}, Changed: {{ _changed }}"
+  vars:
+    _part: "/dev/{{ install_disk }}{{ item.item.part_num }}"
+    _name: "{{ item.item.name }}"
+    _changed: "{{ item.changed }}"
+
+- name: Set up swap
+  when: new_swap is defined
+  ansible.builtin.include_tasks:
+    file: configure_swap.yml
+  loop: "{{ new_swap }}"
+  loop_control:
+    label: "Partition: {{ swap_part }}"
+  vars:
+    swap_part: "/dev/{{ install_disk }}{{ item.part_num }}"

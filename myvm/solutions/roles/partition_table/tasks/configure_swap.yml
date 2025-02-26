@@ -1,0 +1,21 @@
+---
+- name: Set security for swap partition
+  # Note: does not survive reboots on USB drive
+  ansible.builtin.file:
+    path: "{{ swap_part }}"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Initialize swap space
+  command: "mkswap {{ swap_part }}"
+
+- name: Activate swap space
+  command: "swapon {{ swap_part }}"
+
+- name: Add swap to fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "{{ swap_part }}  swap  swap  0 0"
+
+# TODO: Change swappiness and make it persistent?
